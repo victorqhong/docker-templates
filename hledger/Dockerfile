@@ -1,7 +1,9 @@
-FROM ubuntu:16.04
+FROM haskell as builder
 
-RUN apt-get update -y && \
-    apt-get install -y hledger hledger-web && \
-    apt-get clean
+COPY hledger-install.sh /usr/local/bin
+RUN bash hledger-install.sh
+
+FROM haskell
+COPY --from=builder /root/.local/bin/ /usr/local/bin/
 
 CMD ["hledger-web", "--server"]
