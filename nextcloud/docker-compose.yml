@@ -1,0 +1,14 @@
+version: '2'
+services:
+  nextcloud:
+    image: nextcloud
+    restart: always
+    networks:
+      - docker
+    ports:
+      - 4888:80
+    volumes:
+      - "/mnt/nextcloud:/var/www/html"
+networks:
+  docker:
+    external: true

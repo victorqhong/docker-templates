@@ -1,0 +1,10 @@
+version: '2'
+services:
+  hledger:
+    build: .
+    command: "hledger-web --server --port=80 --host=0.0.0.0 --base-url=https://ledger.victorqhong.com"
+    restart: always
+    ports:
+      - 4083:80
+    volumes:
+      - "/mnt/docker/ledger:/root"

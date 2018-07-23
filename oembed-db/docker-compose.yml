@@ -1,0 +1,12 @@
+version: '2'
+services:
+  api:
+    image: victorqhong/oembed-api
+    restart: always
+    ports:
+      - 8081:8080
+    environment:
+      - "CACHE_HOST=cache"
+      - "CACHE_PORT=6379"
+  cache:
+    image: redis

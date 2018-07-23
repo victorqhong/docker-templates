@@ -1,0 +1,12 @@
+version: '2'
+services:
+  app:
+    image: matomo
+    restart: always
+    networks:
+      - docker
+    ports:
+      - 9000:80
+networks:
+  docker:
+    external: true

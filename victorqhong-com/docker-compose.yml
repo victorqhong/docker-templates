@@ -1,0 +1,20 @@
+version: '2'
+services:
+  ghost:
+    image: ghost
+    restart: always
+    ports:
+      - "2368:2368"
+    volumes:
+      - "/mnt/docker/victorqhong.com:/var/lib/ghost/content"
+    environment:
+      - "url=http://victorqhong.com"
+      - "mail__transport=SMTP"
+      - "mail__options__host=mail.victorqhong.com"
+      - "mail__options__port=587"
+      - "mail__options__auth__user=notifications@victorqhong.com"
+      - "mail__options__auth__pass=8Ej6j556tN"
+      - "mail__options__requiresAuth=true"
+      - "mail__options__secureConnection=false"
+      - "mail__options__debug=true"
+      - "mail__options__rejectUnauthorized=false"

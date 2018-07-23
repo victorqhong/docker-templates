@@ -1,0 +1,9 @@
+version: '2'
+services:
+  gogs:
+    image: gogs/gogs
+    restart: always
+    ports:
+      - 4080:3000
+    volumes:
+      - "/mnt/docker/gogs:/data"
