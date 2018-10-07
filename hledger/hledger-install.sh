@@ -1,6 +1,6 @@
 #!/bin/bash
 # Easy hledger installation script for POSIX systems.
-# Uses cabal if installed and stack is not, 
+# Uses cabal if installed and stack is not,
 # or stack, which it will install if needed (or if --force-install-stack is used).
 # Requires bash and some other POSIX tools.
 # This is based on get-stack.sh which is copyright (c) 2015-2017, Stack contributors.
@@ -12,15 +12,15 @@ usage() {
   cat <<HERE
 hledger-install.sh [-f|--force-install-stack] [-v|--verbose] [-s|--status] [--version] [-h|--help]
 
-Installs the current release of hledger and related tools as reliably and 
-quickly as possible on any POSIX system, using cabal (if installed and 
-stack is not) or stack (installing it when needed or if --force-install-stack is used). 
+Installs the current release of hledger and related tools as reliably and
+quickly as possible on any POSIX system, using cabal (if installed and
+stack is not) or stack (installing it when needed or if --force-install-stack is used).
 With --status, just lists the currently installed hledger tools.
 Usage:
 
  curl -sSLO http://hledger.org/hledger-install.sh  # or wget -qO- ...
  less hledger-install.sh       # security review
- bash [-x] hledger-install.sh  # to see commands being run, add -x 
+ bash [-x] hledger-install.sh  # to see commands being run, add -x
 
 or if you prefer convenience to security:
 
@@ -33,7 +33,7 @@ Once hledger is installed, if you keep hledger-install.sh in \$PATH
  hledger install -- -s  # shows installation status
 
 Note this can require significant time (minutes to hours), memory (~2G),
-and disk space (megabytes to a gigabyte) depending on your connection, 
+and disk space (megabytes to a gigabyte) depending on your connection,
 machine and past installations. You can kill and rerun it without losing progress.
 (But note if you ctrl-C too vigorously, it might leave a
 "hackage-security-lock" directory which you'll need to remove manually,
@@ -42,31 +42,26 @@ cf https://github.com/commercialhaskell/stack/issues/3055).
 Version $HLEDGER_INSTALL_VERSION, installs hledger $HLEDGER_VERSION
 HERE
 }
-#TODO https://github.com/commercialhaskell/stack/issues/3055 https://github.com/haskell/hackage-security/issues/187 
+#TODO https://github.com/commercialhaskell/stack/issues/3055 https://github.com/haskell/hackage-security/issues/187
 #Updating package index Hackage (mirrored at https://s3.amazonaws.com/hackage.fpcomplete.com/) ...
 #   /Users/simon/.stack/indices/Hackage/hackage-security-lock: createDirectory: already exists (File exists)
 
+# this script's name (can't use $0 when it's piped into bash)
 HLEDGER_INSTALL_TOOL=hledger-install.sh
-  # ^ this script's name (can't use $0 when it's piped into bash)
 
-HLEDGER_INSTALL_VERSION=20180525
+# this script's version
+HLEDGER_INSTALL_VERSION=20181005
 
-RESOLVER="--resolver=lts"
-  # ^ You can specify a different stackage snapshot here, 
-  # or comment out this line to use your current global resolver, which might 
-  # avoid some unnecessary building. OSX Sierra+ requires at least lts-8.0. 
-  # lts-6 or 7 probably require tweaking the hledger install commands below. 
+# stackage version to install from when using stack
+# You can specify a different stackage version here, or comment out
+# this line to use your current global resolver, which might avoid
+# some unnecessary building.
+# Mac Sierra+ requires at least lts-8.0.
+# Old lts-6 or lts-7 would probably require tweaking the hledger install commands below.
+RESOLVER="--resolver=lts-12"
+#RESOLVER="--resolver=nightly-2018-07-09"
 
-HLEDGER_LIB_VERSION=1.9.1
-HLEDGER_VERSION=1.9.1
-HLEDGER_UI_VERSION=1.9.1
-HLEDGER_WEB_VERSION=1.9.2
-HLEDGER_API_VERSION=1.9.1
-
-HLEDGER_DIFF_VERSION=0.2.0.14
-HLEDGER_IADD_VERSION=1.3.5
-HLEDGER_INTEREST_VERSION=1.5.2
-HLEDGER_IRR_VERSION=0.1.1.14
+# things to be installed
 
 HLEDGER_MAIN_TOOLS="\
 hledger \
@@ -79,11 +74,30 @@ HLEDGER_OTHER_TOOLS="\
 hledger-diff \
 hledger-iadd \
 hledger-interest \
-hledger-irr \
 "
 
+# latest hledger package versions, update often:
+HLEDGER_VERSION=1.11
+HLEDGER_LIB_VERSION=$HLEDGER_VERSION
+HLEDGER_UI_VERSION=$HLEDGER_VERSION
+HLEDGER_WEB_VERSION=$HLEDGER_VERSION
+HLEDGER_API_VERSION=$HLEDGER_VERSION
+HLEDGER_DIFF_VERSION=0.2.0.14
+HLEDGER_IADD_VERSION=1.3.6
+HLEDGER_INTEREST_VERSION=1.5.2
+
+# extra dependencies that aren't in stackage:
+EXTRA_DEPS="\
+cassava-megaparsec-1.0.0 \
+"
+
+# the oldest version of stack that will work:
+STACK_VERSION=1.7.1
+
+
+
 # start of (most of) get-stack.sh, https://github.com/commercialhaskell/stack/blob/master/etc/scripts/get-stack.sh
-# modified at CHANGED markers
+# CHANGED marks a few of our customisations, but not all.
 
 HOME_LOCAL_BIN="$HOME/.local/bin"
 USR_LOCAL_BIN="/usr/local/bin"
@@ -644,6 +658,12 @@ has_stack() {
   has_cmd stack
 }
 
+# Check whether a new enough version of the 'stack' command exists
+has_good_stack() {
+  has_cmd stack &&
+  [[ ! $(cmpver "$(cmd_version stack 2>/dev/null)" $STACK_VERSION) = 2 ]]
+}
+
 # Check whether 'wget' command exists
 has_wget() {
   has_cmd wget
@@ -734,7 +754,7 @@ check_usr_local_bin_on_path() {
 
 # Check whether Stack is already installed, and print an error if it is.
 check_stack_installed() {
-  if [ "$FORCE_INSTALL_STACK" != "true" ] && has_stack ; then
+  if [ "$FORCE_INSTALL_STACK" != "true" ] && has_good_stack ; then
     die "Stack $(stack_version) already appears to be installed at:
   $(stack_location)
 Use 'stack upgrade' or your OS's package manager to upgrade,
@@ -748,13 +768,58 @@ trap cleanup_temp_dir EXIT
 
 # hledger routines
 
-# install stack if needed, or always with --force-install-stack, in $HOME/.local/bin
+# Compare dotted number version strings, based on https://stackoverflow.com/a/4025065/84401.
+# cmpver A B's exit status *and* output is
+# 0 for A ~= B (1 is equivalent to 1.0, 1.0.0 etc.)
+# 1 for A > B
+# 2 for A < B.
+cmpver () {
+    if [[ $1 == $2 ]]
+    then
+        echo 0; return 0
+    fi
+    local IFS=.
+    local i ver1=($1) ver2=($2)
+    # fill empty fields in ver1 with zeros
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++))
+    do
+        ver1[i]=0
+    done
+    for ((i=0; i<${#ver1[@]}; i++))
+    do
+        if [[ -z ${ver2[i]} ]]
+        then
+            # fill empty fields in ver2 with zeros
+            ver2[i]=0
+        fi
+        if ((10#${ver1[i]} > 10#${ver2[i]}))
+        then
+            echo 1; return 1
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]}))
+        then
+            echo 2; return 2
+        fi
+    done
+    echo 0; return 0
+}
+
+# install stack or a newer version of stack if needed, 
+# or always with --force-install-stack, 
+# in $HOME/.local/bin.
+# After installing, check that a new-enough stack is now the first in $PATH,
+# and if it's not, exit with a warning advising the user to remove the old one. 
 ensure_stack() {
-  if ! has_stack || [[ "$FORCE_INSTALL_STACK" == "true" ]] ; then
+  if ! has_good_stack || [[ "$FORCE_INSTALL_STACK" == "true" ]] ; then
     echo "Installing stack"
     do_os
+    if ! has_good_stack ; then
+      echo "Error: an older stack ($(cmd_version stack)) is first in \$PATH, shadowing the new version."
+      echo "Please delete or rename $(which stack) and run hledger-install again."
+      exit 1
+    fi
   fi
-  echo "using stack $(stack --version)"
+  echo "Using stack $(stack --version)"
 }
 
 # get a sed command that supports EREs
@@ -769,15 +834,15 @@ cmd_location() {
   command -v "$1"
 }
 
-# Get the given command's version, ie the first number in its --version output, 
+# Get the given command's version, ie the first number in the first line of its --version output,
 # or empty string if there's a problem.
 cmd_version() {
-  (command "$1" --version 2>/dev/null | grep -E '[0-9]' | $SED -e 's/[^0-9]*([0-9][0-9.]*).*/\1/') || ""
+  (command "$1" --version 2>/dev/null | head -n1 | grep -E '[0-9]' | $SED -e 's/[^0-9]*([0-9][0-9.]*).*/\1/') || ""
 }
 
 # Check whether the given command exists with given version
 has_cmd_version() {
-  [[ $(cmd_version "$1") == "$2" ]] 
+  [[ $(cmd_version "$1") == "$2" ]]
 }
 
 # Show a command's presence in $PATH, and its version if present.
@@ -785,12 +850,12 @@ print_cmd_version() {
   if [[ $(cmd_location "$1") ]]; then
     echo "$1" $(cmd_version "$1") is installed at $(cmd_location "$1")
   else
-    echo "$1 not found"
+    echo "$1 is not found"
   fi
 }
 
-# Show the installation status of the $HLEDGER_MAIN_TOOLS and $HLEDGER_OTHER_TOOLS. 
-print_hledger_versions() {
+# Show the current installation status of the hledger packages.
+print_installed_versions() {
   for cmd in $HLEDGER_MAIN_TOOLS $HLEDGER_OTHER_TOOLS $HLEDGER_INSTALL_TOOL ; do print_cmd_version "$cmd"; done
 }
 
@@ -805,23 +870,21 @@ quietly_run() {
   "$@" 2>/dev/null || true
 }
 
-# Try to install the executables of the given package(s) to $HOME/.local/bin, 
-# trying several methods, generally from quickest to most reliable, continuing on failure.
-# Current the installation methods are:
-# - if stack is not installed and cabal is, try cabal install
-# - otherwise install stack if needed and try stack install with specific resolver and ghc
-# For the stack method, it's necessary to provide not only the package(s) you want to
-# install but also all dependencies which are not in the specified stackage $RESOLVER.
+# Try to install the executables of the given haskell package(s) and versions, 
+# using stack or cabal, logging the commands, continuing on failure.
+# It's assumed that either a new-enough stack or cabal-install is already installed.
+# stack is preferred.
+# For stack, you must specify the package(s) you want to install, plus any additional
+# dependency packages which are not in the stackage $RESOLVER configured above.
 try_install() {
-  (cd  # avoid any project-specific stack/cabal config, install at user level
-   (! has_cmd stack && has_cmd cabal && echo "using $(cabal --version)" && try_info cabal install "$@" --verbose="$CABAL_VERBOSITY" ) ||
-   (ensure_stack && (
-    #(try_info stack install --install-ghc "$@" --verbosity=$STACK_VERBOSITY ) ||        # existing resolver
-    (try_info stack install --install-ghc $RESOLVER "$@" --verbosity="$STACK_VERBOSITY" )  # specific resolver
-    )
-   ) ||
-   echo Failed to install "$@"
-  )
+  cd  # ensure we install at user level, not in some project's stack/cabal setup
+  if has_cmd stack ; then
+    try_info stack install --install-ghc $RESOLVER "$@" --verbosity="$STACK_VERBOSITY"
+  elif has_cmd cabal ; then
+    try_info cabal install "$@" --verbose="$CABAL_VERBOSITY"
+  else
+    echo "Failed to install $@"
+  fi
 }
 
 # start
@@ -883,7 +946,49 @@ fi
 
 echo "hledger-install.sh $HLEDGER_INSTALL_VERSION $(date)"
 
+# show system info
+echo
+echo "System info:"
+quietly_run uname -rsv
+quietly_run lsb_release -a
+
+# show current installed hledger packages
+echo
+echo "Install status before:"
+print_installed_versions
+
+if [[ $STATUSFLAG ]] ; then
+  exit 0
+fi
+
+# explain the planned install method
+echo
+echo "Install method:"
+# if stack is installed, use stack
+# || [[ "$FORCE_INSTALL_STACK" == "true" ]]  #--force-install-stack
+if has_stack ; then
+  echo "stack $(cmd_version stack) is installed, using stack to install hledger in $HOME/.local/bin"
+  # if it's too old, explain that we'll be installing the latest
+  if ! has_good_stack ; then
+    echo "Note: stack $(cmd_version stack) is too old, a newer version will be installed"
+  fi
+  # install stack now (or if new enough, just print its precise version)
+  ensure_stack
+# else if cabal is installed, use cabal
+elif has_cmd cabal ; then
+  echo "no stack installed, cabal $(cabal --numeric-version) installed; using cabal to install hledger in $HOME/.cabal/bin"
+  echo Using $(cabal --version)  # unquoted to squash cabal version to one line
+  # run cabal update to make sure it knows about latest packages
+  try_info cabal update
+# else use stack
+else
+  echo "no stack or cabal installed; stack will be installed and used to install hledger in $HOME/.local/bin"
+    # install stack now
+  ensure_stack
+fi
+
 # ensure ~/.local/bin/ in PATH
+# TODO should check ~/.cabal/bin if using cabal
 if ! on_path "$HOME_LOCAL_BIN" ; then
   echo "WARNING: this script installs hledger (and perhaps stack) in '$HOME_LOCAL_BIN'"
   echo "  but this directory is not in your PATH. Adding it temporarily. To run"
@@ -893,75 +998,63 @@ if ! on_path "$HOME_LOCAL_BIN" ; then
   export PATH=$HOME_LOCAL_BIN:$PATH
 fi
 
-# show system info
-echo "System info:"
-quietly_run uname -rsv
-quietly_run lsb_release -a
-
-# show current installed hledger packages
-echo "Install status:"
-print_hledger_versions
-
-if [[ $STATUSFLAG ]] ; then
-  exit 0
-fi
-
-# if we'll be using cabal, run cabal update once at the start
-(! has_cmd stack && has_cmd cabal && try_info cabal update )
-
 # try installing each package that needs installing, in turn
-echo ----------
-if [[ $(cmd_version hledger) < $HLEDGER_VERSION ]]; then
+echo
+echo Installing hledger packages:
+
+if [[ $(cmpver "$(cmd_version hledger 2>/dev/null)" $HLEDGER_VERSION) = 2 ]]; then
   echo Installing hledger
-  try_install hledger-$HLEDGER_VERSION hledger-lib-$HLEDGER_LIB_VERSION
+  try_install hledger-$HLEDGER_VERSION hledger-lib-$HLEDGER_LIB_VERSION $EXTRA_DEPS
   echo
 fi
-if [[ $(cmd_version hledger-ui) < $HLEDGER_UI_VERSION ]]; then 
+
+if [[ $(cmpver "$(cmd_version hledger-ui 2>/dev/null)" $HLEDGER_UI_VERSION) = 2 ]]; then
   echo Installing hledger-ui
-  try_install hledger-ui-$HLEDGER_UI_VERSION hledger-$HLEDGER_VERSION hledger-lib-$HLEDGER_LIB_VERSION
-    # brick-0.19 data-clist-0.1.2.0
-    # ^ when hledger-iadd requires a non-stack brick, use the same version here to avoid rebuilding
+  try_install hledger-ui-$HLEDGER_UI_VERSION hledger-$HLEDGER_VERSION hledger-lib-$HLEDGER_LIB_VERSION $EXTRA_DEPS \
+    # brick-X.Y   # when hledger-iadd requires a special brick, use the same here to reduce rebuilding
   echo
 fi
-if [[ $(cmd_version hledger-web) < $HLEDGER_WEB_VERSION ]]; then 
+
+if [[ $(cmpver "$(cmd_version hledger-web 2>/dev/null)" $HLEDGER_WEB_VERSION) = 2 ]]; then
   echo Installing hledger-web
-  try_install hledger-web-$HLEDGER_WEB_VERSION hledger-$HLEDGER_VERSION hledger-lib-$HLEDGER_LIB_VERSION
+  try_install hledger-web-$HLEDGER_WEB_VERSION hledger-$HLEDGER_VERSION hledger-lib-$HLEDGER_LIB_VERSION $EXTRA_DEPS
   echo
 fi
-if [[ $(cmd_version hledger-api) < $HLEDGER_API_VERSION ]]; then 
+
+if [[ $(cmpver "$(cmd_version hledger-api 2>/dev/null)" $HLEDGER_API_VERSION) = 2 ]]; then
   echo Installing hledger-api
-  try_install hledger-api-$HLEDGER_API_VERSION hledger-$HLEDGER_VERSION hledger-lib-$HLEDGER_LIB_VERSION
+  try_install hledger-api-$HLEDGER_API_VERSION hledger-$HLEDGER_VERSION hledger-lib-$HLEDGER_LIB_VERSION $EXTRA_DEPS
   echo
 fi
-# Third-party addons. We allow these to use an older version of
-# hledger-lib, in case their bounds have not been updated yet. 
-if [[ $(cmd_version hledger-diff) < $HLEDGER_DIFF_VERSION ]]; then 
+
+# Third-party addons. We sometimes build these with an older version
+# of hledger[-lib], if their bounds have not been updated yet.
+if [[ $(cmpver "$(cmd_version hledger-diff 2>/dev/null)" $HLEDGER_DIFF_VERSION) = 2 ]]; then
   echo Installing hledger-diff
-  try_install hledger-diff-$HLEDGER_DIFF_VERSION hledger-lib-$HLEDGER_LIB_VERSION
+  try_install hledger-diff-$HLEDGER_DIFF_VERSION hledger-lib-$HLEDGER_LIB_VERSION $EXTRA_DEPS
   echo
 fi
-if [[ $(cmd_version hledger-iadd) < $HLEDGER_IADD_VERSION ]]; then 
+
+if [[ $(cmpver "$(cmd_version hledger-iadd 2>/dev/null)" $HLEDGER_IADD_VERSION) = 2 ]]; then
   echo Installing hledger-iadd
-  try_install hledger-iadd-$HLEDGER_IADD_VERSION hledger-lib-$HLEDGER_LIB_VERSION
+  try_install hledger-iadd-$HLEDGER_IADD_VERSION hledger-lib-$HLEDGER_LIB_VERSION $EXTRA_DEPS
   echo
 fi
-if [[ $(cmd_version hledger-interest) < $HLEDGER_INTEREST_VERSION ]]; then 
+
+if [[ $(cmpver "$(cmd_version hledger-interest 2>/dev/null)" $HLEDGER_INTEREST_VERSION) = 2 ]]; then
   echo Installing hledger-interest
-  try_install hledger-interest-$HLEDGER_INTEREST_VERSION hledger-lib-$HLEDGER_LIB_VERSION
+  try_install hledger-interest-$HLEDGER_INTEREST_VERSION hledger-lib-$HLEDGER_LIB_VERSION $EXTRA_DEPS
   echo
 fi
-if [[ $(cmd_version hledger-irr) < $HLEDGER_IRR_VERSION ]]; then 
-  echo Installing hledger-irr
-  try_install hledger-irr-$HLEDGER_IRR_VERSION hledger-lib-$HLEDGER_LIB_VERSION
-  echo
-fi
-echo ----------
 
 # show new installation status
-print_hledger_versions
+echo
+echo "Install status after:"
+print_installed_versions
 
 # warn if $HOME/.local/bin isn't in $PATH
 check_home_local_bin_on_path
+# TODO if we installed with cabal, we should check $HOME/.cabal/bin instead
 
 # TODO
 # check/require ghc-8.0.2+/lts-8+ on osx sierra+
